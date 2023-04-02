@@ -13,7 +13,7 @@ Bear in mind that this ONLY tests the Redis functions above and with a limited s
 
 ## Prerequisites
 
-- Golang installed
+- Golang 1.19 installed 
 - _Recomended but not mandatory_ VS Code or a similiar IDE 
 
 ## How to install and Run the project
