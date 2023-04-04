@@ -1,0 +1,16 @@
+version: "3.7"
+
+services:
+  app:
+    container_name: "rediscomparer-go-app"
+    image: golang:1.20.0-alpine
+    working_dir: /go/src/rediscomparer
+    volumes:
+      - .:/go/src/rediscomparer
+    command: "sleep 1d"
+    depends_on:
+      - redis1
+
+  redis1:
+    container_name: "rediscomparer-redis-1"
+    image: "redis:latest"

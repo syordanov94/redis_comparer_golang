@@ -19,3 +19,5 @@
 
 *.DS_Store
 *.vscode
+
+bench-redis-1000000x-sequence.txt
