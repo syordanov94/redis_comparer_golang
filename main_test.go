@@ -1,101 +1,138 @@
 package main
 
 import (
-	"fmt"
-	"rediscomparer/redis/goredis"
-	"rediscomparer/redis/redisconfig"
-	"rediscomparer/redis/redisgo"
+	"context"
 	"testing"
+
+	"rediscomparer/storage"
+	"rediscomparer/storage/goredis"
+	"rediscomparer/storage/redigo"
+
+	"github.com/stretchr/testify/require"
 )
 
-// -------- RedisGo Benchmarks -------------
+// -------- Redigo Benchmarks -------------
 
-func BenchmarkRedisGoGetAndSet(b *testing.B) {
-	// --- (1) ----
-	// Get the redis config and init the repository
-	config, err := redisconfig.ConfigFromFile("config.json")
-	if err != nil {
-		panic(err)
-	}
-	redisRepo := redisgo.NewRedisRepository(fmt.Sprintf("%s:%d", config.Host, config.Port), config.Pass)
+func TestRedigo(t *testing.T) {
+	repository, err := redigo.NewRepository("redis1:6379")
+	require.NoError(t, err)
 
+	ctx := context.Background()
+
+	expected := "testValue1"
+	err = repository.Set(ctx, "testKey", expected)
+	require.NoError(t, err)
+
+	actual, err := repository.Get(context.Background(), "testKey")
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+}
+
+func BenchmarkRedigoGet(b *testing.B) {
+	repository, err := redigo.NewRepository("redis1:6379")
+	require.NoError(b, err)
+
+	ctx := context.Background()
+
+	err = repository.Set(ctx, "testKey", "testValue")
+	require.NoError(b, err)
+
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		SetAndGet(&redisRepo, "testKey", "testValue")
+		_, err := repository.Get(context.Background(), "testKey")
+		require.NoError(b, err)
 	}
 }
 
-func BenchmarkRedisGoGet(b *testing.B) {
-	// --- (1) ----
-	// Get the redis config and init the repository
-	config, err := redisconfig.ConfigFromFile("config.json")
-	if err != nil {
-		panic(err)
-	}
-	redisRepo := redisgo.NewRedisRepository(fmt.Sprintf("%s:%d", config.Host, config.Port), config.Pass)
+func BenchmarkRedigoSet(b *testing.B) {
+	repository, err := redigo.NewRepository("redis1:6379")
+	require.NoError(b, err)
 
+	ctx := context.Background()
+
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		redisRepo.Get("testKey")
+		err := repository.Set(ctx, "testKey", "testValue")
+		require.NoError(b, err)
 	}
 }
 
-func BenchmarkRedisGoSet(b *testing.B) {
-	// --- (1) ----
-	// Get the redis config and init the repository
-	config, err := redisconfig.ConfigFromFile("config.json")
-	if err != nil {
-		panic(err)
-	}
-	redisRepo := redisgo.NewRedisRepository(fmt.Sprintf("%s:%d", config.Host, config.Port), config.Pass)
+func BenchmarkRedigoGetAndSet(b *testing.B) {
+	repository, err := redigo.NewRepository("redis1:6379")
+	require.NoError(b, err)
 
+	ctx := context.Background()
+
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		redisRepo.Set("testKey", "testValue")
+		assertSetAndGet(b, repository, ctx, "testKey", "testValue")
+	}
+}
+
+// -----------------------------------------------
+
+// -------- Goredis Benchmarks -------------------
+
+func TestGoredis(t *testing.T) {
+	repository := goredis.NewRepository("redis1:6379")
+
+	ctx := context.Background()
+
+	expected := "testValue1"
+	err := repository.Set(ctx, "testKey", expected)
+	require.NoError(t, err)
+
+	actual, err := repository.Get(context.Background(), "testKey")
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+}
+
+func BenchmarkGoredisGet(b *testing.B) {
+	repository := goredis.NewRepository("redis1:6379")
+
+	ctx := context.Background()
+
+	err := repository.Set(ctx, "testKey", "testValue")
+	require.NoError(b, err)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := repository.Get(context.Background(), "testKey")
+		require.NoError(b, err)
+	}
+}
+
+func BenchmarkGoredisSet(b *testing.B) {
+	repository := goredis.NewRepository("redis1:6379")
+
+	ctx := context.Background()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		err := repository.Set(ctx, "testKey", "testValue")
+		require.NoError(b, err)
+	}
+}
+
+func BenchmarkGoredisGetAndSet(b *testing.B) {
+	repository := goredis.NewRepository("redis1:6379")
+
+	ctx := context.Background()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		assertSetAndGet(b, repository, ctx, "testKey", "testValue")
 	}
 }
 
 // -----------------------------------------------
 
-// -------- GoRedis Benchmarks -------------------
+func assertSetAndGet(t testing.TB, redisRepository storage.Repository, ctx context.Context, key, value string) {
+	t.Helper()
 
-func BenchmarkGoRedisGetAndSet(b *testing.B) {
-	// --- (1) ----
-	// Get the redis config and init the repository
-	config, err := redisconfig.ConfigFromFile("config.json")
-	if err != nil {
-		panic(err)
-	}
-	redisRepo := goredis.NewRedisRepository(fmt.Sprintf("%s:%d", config.Host, config.Port), config.Pass)
+	err := redisRepository.Set(ctx, key, value)
+	require.NoError(t, err)
 
-	for i := 0; i < b.N; i++ {
-		SetAndGet(&redisRepo, "testKey", "testValue")
-	}
+	_, err = redisRepository.Get(ctx, key)
+	require.NoError(t, err)
 }
-
-func BenchmarkGoRedisGet(b *testing.B) {
-	// --- (1) ----
-	// Get the redis config and init the repository
-	config, err := redisconfig.ConfigFromFile("config.json")
-	if err != nil {
-		panic(err)
-	}
-	redisRepo := goredis.NewRedisRepository(fmt.Sprintf("%s:%d", config.Host, config.Port), config.Pass)
-
-	for i := 0; i < b.N; i++ {
-		redisRepo.Get("testKey")
-	}
-}
-
-func BenchmarkGoRedisSet(b *testing.B) {
-	// --- (1) ----
-	// Get the redis config and init the repository
-	config, err := redisconfig.ConfigFromFile("config.json")
-	if err != nil {
-		panic(err)
-	}
-	redisRepo := goredis.NewRedisRepository(fmt.Sprintf("%s:%d", config.Host, config.Port), config.Pass)
-
-	for i := 0; i < b.N; i++ {
-		redisRepo.Set("testKey", "testValue")
-	}
-}
-
-// -----------------------------------------------
